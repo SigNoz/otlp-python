@@ -4,31 +4,49 @@ from opentelemetry._logs import set_logger_provider
 from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
     OTLPLogExporter,
 )
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+    OTLPSpanExporter,
+)
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+)
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-
-trace.set_tracer_provider(TracerProvider())
-
-
 import random
 import string
 import time
 import json
 import os
-logger_provider = LoggerProvider(
-    resource=Resource.create(
+
+resource = Resource.create(
         {
             "service.name": "shoppingcart",
             "service.instance.id": "instance-12",
         }
-    ),
-)
+    )
+
+# create the providers
+trace_provider = TracerProvider(resource=resource)
+logger_provider = LoggerProvider(resource=resource)
+
+# set the providers
+trace.set_tracer_provider(trace_provider)
 set_logger_provider(logger_provider)
-# exporter = OTLPLogExporter(endpoint="signoz.io:4317", insecure=False, headers= {"signoz-access-token": "Bearer"})
+
 exporter = OTLPLogExporter(endpoint=os.getenv("OTLP_ENDPOINT", "localhost:4317"), insecure=json.loads(os.getenv("INSECURE", "true").lower()))
+exporterspan = OTLPSpanExporter(endpoint=os.getenv("OTLP_ENDPOINT", "localhost:4317"), insecure=json.loads(os.getenv("INSECURE", "true").lower()))
+
+
+# add the batch processors to the trace provider
 logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
+trace.get_tracer_provider().add_span_processor(
+    BatchSpanProcessor(exporterspan)
+)
+
+
+
 handler = LoggingHandler(level=logging.WARNING, logger_provider=logger_provider)
 # Attach OTLP handler to root logger
 logging.getLogger().addHandler(handler)
@@ -38,7 +56,9 @@ logging.info("Jackdaws love my big sphinx of quartz.")
 logger1 = logging.getLogger("myapp.area1")
 logger2 = logging.getLogger("myapp.area2")
 
+
 tracer = trace.get_tracer(__name__)
+
 while True:
     time.sleep(5)
     try:
@@ -59,3 +79,4 @@ while True:
         continue
     # logger2.error(" 2023-03-15 17:38:08 simpleMessageListenerContainer-178 INFO  c.g.core.provider.ConsumeRestApiImpl              user-id= 42f17af5-8c73-4567-9206-2dc5a8f84bb7   trace-id=              span-id=                                     line:62  :  Consuming Rest API")
 logger_provider.shutdown()
+trace_provider.shutdown()
