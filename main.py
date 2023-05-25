@@ -20,6 +20,8 @@ import time
 import json
 import os
 
+from flask import Flask, jsonify, request
+
 resource = Resource.create(
         {
             "service.name": "shoppingcart",
@@ -47,36 +49,61 @@ trace.get_tracer_provider().add_span_processor(
 
 
 
-handler = LoggingHandler(level=logging.WARNING, logger_provider=logger_provider)
+handler = LoggingHandler(level=logging.DEBUG,logger_provider=logger_provider)
 # Attach OTLP handler to root logger
-logging.getLogger().addHandler(handler)
+# logging.getLogger().addHandler(handler)
 # Log directly
 logging.info("Jackdaws love my big sphinx of quartz.")
 # Create different namespaced loggers
 logger1 = logging.getLogger("myapp.area1")
 logger2 = logging.getLogger("myapp.area2")
+logger2.addHandler(handler)
+logger2.setLevel(logging.DEBUG)
 
 
 tracer = trace.get_tracer(__name__)
 
-while True:
-    time.sleep(5)
-    try:
-        with tracer.start_as_current_span("foo"):
-            # Do something
-            res = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
-            method = random.choice(["GET", "POST", "PUT", "DELETE"])
-            status = random.choice([200, 201, 203, 400, 401, 403, 404, 500, 501, 503])
-            level = random.choice(["INFO", "ERROR", "WARN", "DEBUG"])
-            response_time_ms = random.randint(1, 1000)
-            logger2.warning(res, extra={"method": method, "status": status, "level": level, "response_time": response_time_ms})
-    except KeyboardInterrupt:
-        print("Exiting...")
-        logger_provider.shutdown()
-        break
-    except:
-        logger_provider.shutdown()
-        continue
-    # logger2.error(" 2023-03-15 17:38:08 simpleMessageListenerContainer-178 INFO  c.g.core.provider.ConsumeRestApiImpl              user-id= 42f17af5-8c73-4567-9206-2dc5a8f84bb7   trace-id=              span-id=                                     line:62  :  Consuming Rest API")
-logger_provider.shutdown()
-trace_provider.shutdown()
+
+app = Flask(__name__)
+
+app.logger.addHandler(handler)
+
+
+def get_random_time():
+    return random.randint(100, 1500) / 1000.0
+
+
+@app.route('/', methods = ['GET', 'POST'])
+def home():
+    if(request.method == 'GET'):
+        with tracer.start_as_current_span("home"):
+            args = request.args
+            user = args.get('user',  "anonymous")
+            with tracer.start_as_current_span("authenticate"):
+                time.sleep(get_random_time())
+                logger2.debug("authenticating user: " + user)
+                with tracer.start_as_current_span("authenticate_check_cache"):
+                    time.sleep(get_random_time())
+                with tracer.start_as_current_span("authenticate_check_db"):
+                    time.sleep(get_random_time())
+
+                with tracer.start_as_current_span("check_request limit"):
+                    time.sleep(get_random_time())
+            
+            with tracer.start_as_current_span("get_cart"):
+                logger2.debug("getting cart for user: " + user)
+                with tracer.start_as_current_span("check cart in cache"):
+                    time.sleep(get_random_time())
+                with tracer.start_as_current_span("check cart in db"):
+                    logger2.debug("checking cart from db for : " + user)
+                    time.sleep(get_random_time())
+            
+            logger2.info("completed request for user: " + user, extra={"method": "GET", "status": 200, "level": "info"})
+            return "Hello " + user
+  
+  
+# driver function
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5002)
+    logger_provider.shutdown()
+    trace_provider.shutdown()
