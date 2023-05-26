@@ -1,0 +1,29 @@
+version: "2.4"
+services:
+  otlp-python:
+    image: "signoz/otlp-python:latest"
+    container_name: otlp-python
+    hostname: otlp-python
+    restart: always
+    ports:
+      - 5002:5002
+    extra_hosts:
+      - signoz:host-gateway
+    environment:
+      OTLP_ENDPOINT: http://signoz:4317   # Replace with SigNoz OTLP endpoint, if SigNoz not running on host machine
+
+  load-python:
+    image: "grubykarol/locust:1.2.3-python3.9-alpine3.12"
+    container_name: load-python
+    hostname: load-python
+    restart: always
+    environment:
+      ATTACKED_HOST: http://otlp-python:5002
+      LOCUST_MODE: standalone
+      NO_PROXY: standalone
+      TASK_DELAY_FROM: 45
+      TASK_DELAY_TO: 60
+      QUIET_MODE: "${QUIET_MODE:-false}"
+      LOCUST_OPTS: "--headless -u 10 -r 10"
+    volumes:
+      - ./locustfile.py:/locust/locustfile.py
