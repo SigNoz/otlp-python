@@ -24,8 +24,8 @@ from flask import Flask, jsonify, request
 
 resource = Resource.create(
         {
-            "service.name": "shoppingcart",
-            "service.instance.id": "instance-12",
+            "service.name": "demo-app",
+            "service.instance.id": "demo-instance",
         }
     )
 
