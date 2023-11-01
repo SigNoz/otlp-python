@@ -81,7 +81,8 @@ def home():
             user = args.get('user',  "anonymous")
             with tracer.start_as_current_span("authenticate"):
                 time.sleep(get_random_time())
-                logger2.debug("authenticating user: " + user)
+                metadata =  '{"user": "'+user +'", "service_meta": {"name": "demo-service", "namespace": "demo"}, '
+                logger2.debug(metadata + '"message": "authenticating user: '+ user +'"}')
                 with tracer.start_as_current_span("authenticate_check_cache"):
                     time.sleep(get_random_time())
                 with tracer.start_as_current_span("authenticate_check_db"):
@@ -91,14 +92,14 @@ def home():
                     time.sleep(get_random_time())
             
             with tracer.start_as_current_span("get_cart"):
-                logger2.debug("getting cart for user: " + user)
+                logger2.debug(metadata + '"message": "getting cart for user: '+ user +'"}')
                 with tracer.start_as_current_span("check cart in cache"):
                     time.sleep(get_random_time())
                 with tracer.start_as_current_span("check cart in db"):
-                    logger2.debug("checking cart from db for : " + user)
+                    logger2.debug(metadata + '"message": "checking cart from db for : '+ user +'"}')
                     time.sleep(get_random_time())
             
-            logger2.info("completed request for user: " + user, extra={"method": "GET", "status": 200, "level": "info"})
+            logger2.info(metadata + '"method":"GET", "status": 200, "level": "info", "message": "completed request for user: '+ user +'"}', extra={"method": "GET", "status": 200, "level": "info"})
             return "Hello " + user
   
   
